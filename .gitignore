@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environment (venv or conda)
+venv/
+.env
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+.history/
+
+# Streamlit cache & config
+.streamlit/
+streamlit/
+cache/
+
+# Python dependencies
+requirements.txt
+Pipfile
+Pipfile.lock
+
+# Ignore VS Code settings
+.vscode/
+
+# Jupyter Notebooks
+*.ipynb_checkpoints
+
+# Secret files (if using Streamlit Secrets)
+.streamlit/secrets.toml
