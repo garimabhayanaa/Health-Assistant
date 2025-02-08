@@ -116,6 +116,7 @@ def main():
         st.session_state.messages.append({'role': 'User', 'content': prompt})
         response = qa_chain.invoke({'query': prompt})
         result = response["result"]
+        st.chat_message("Assistant").markdown(result)
         st.session_state.messages.append({'role': 'Assistant', 'content': result})
     st.write("---")
     st.session_state.uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
@@ -125,12 +126,15 @@ def main():
         if st.button("Analyze Image"):
             encoded_image = encode_image(st.session_state.uploaded_image)
             result = analyse_image_with_query(st.session_state.image_query, encoded_image)
-            st.session_state.uploaded_image = None
+            # Append user query and response to chat history
             st.chat_message("User").markdown(f"**User (Image Query):** {st.session_state.image_query}")
             st.session_state.messages.append({'role': 'User', 'content': st.session_state.image_query})
-            st.session_state.image_query = ""
-            st.chat_message("Assistant").markdown(f"{result}")
-            st.session_state.messages.append({'role': 'Assistant', 'content': result}) 
+            st.chat_message("Assistant").markdown(result)
+            st.session_state.messages.append({'role': 'Assistant', 'content': result})
+
+            # Properly clear session state variables before rerun
+            del st.session_state["uploaded_image"]
+            del st.session_state["image_query"]
             st.rerun()
 
 if __name__ == "__main__":
