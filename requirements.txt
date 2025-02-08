@@ -60,6 +60,7 @@ packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
 pip==25.0
+portaudio==19.7.0
 propcache==0.2.1
 protobuf==5.29.3
 pyarrow==19.0.0

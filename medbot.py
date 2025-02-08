@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
@@ -148,7 +148,7 @@ def main():
     # Input Options (Audio & Image)
     col1, col2 = st.columns(2)
     with col1:
-        audio_input = st.button("🎤 Record Audio")
+        audio_input = st.button("Record Audio")
     with col2:
         st.session_state.uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
