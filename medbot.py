@@ -5,14 +5,12 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEndpoint
-from assistant_audio_setup import text_to_speech_with_gtts
-from user_audio_setup import transcribe_with_groq, record_audio
 from image_processing import analyse_image_with_query, encode_image
 
-DB_FAISS_PATH = "vectorstore/db_faiss"
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-HF_TOKEN = os.environ.get("HF_TOKEN")
+HF_TOKEN = os.getenv("HF_TOKEN")
 HUGGINGFACE_REPO_ID = "mistralai/Mistral-7B-Instruct-v0.3"
+DB_FAISS_PATH = "vectorstore/db_faiss"
+GROQ_API_KEY=os.getenv("GROQ_API_KEY")
 
 def get_vectorstore():
     embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -106,8 +104,6 @@ def main():
         st.session_state.uploaded_image = None
     if "image_query" not in st.session_state:
         st.session_state.image_query = ""
-    if "recorded_audio_path" not in st.session_state:
-        st.session_state.recorded_audio_path = None
 
     # Display Chat History
     for message in st.session_state.messages:
@@ -115,93 +111,27 @@ def main():
 
     # Chat Input
     prompt = st.chat_input("💬 Type your message...")
-    is_audio_input = False
-
     if prompt:
         st.chat_message("User").markdown(f"**User:** {prompt}")
         st.session_state.messages.append({'role': 'User', 'content': prompt})
-
-        if vectorstore is None:
-            st.error("Failed to load the vector store.")
-            return
-
         response = qa_chain.invoke({'query': prompt})
         result = response["result"]
-
-        if is_audio_input:
-            text_to_speech_with_gtts(result, "response_audio.mp3")
-            if os.path.exists("response_audio.mp3"):
-                st.audio("response_audio.mp3")
-            else:
-                st.error("Audio response generation failed. Try Again.")
-        else:
-            st.chat_message("Assistant").markdown(f"{result}")
-
         st.session_state.messages.append({'role': 'Assistant', 'content': result})
-
-        # Clear Image & Query when new input is given
-        st.session_state.uploaded_image = None
-        st.session_state.image_query = ""
-
     st.write("---")
-
-    # Input Options (Audio & Image)
-    col1, col2 = st.columns(2)
-    with col1:
-        audio_input = st.button("Record Audio")
-    with col2:
-        st.session_state.uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-
-    # Audio Handling
-    if audio_input:
-        with st.spinner("Recording... Speak now!"):
-            st.session_state.recorded_audio_path = record_audio()
-
-        if st.session_state.recorded_audio_path:
-            st.success("Recording complete. Processing...")
-            prompt = transcribe_with_groq(st.session_state.recorded_audio_path, GROQ_API_KEY)
-            is_audio_input = True
-
-            if prompt:
-                st.chat_message("User").markdown(f"**User (Audio Input):** {prompt}")
-                st.session_state.messages.append({'role': 'User', 'content': prompt})
-
-                response = qa_chain.invoke({'query': prompt})
-                result = response["result"]
-
-                text_to_speech_with_gtts(result, "response_audio.mp3")
-                if os.path.exists("response_audio.mp3"):
-                    st.audio("response_audio.mp3")
-                else:
-                    st.error("Audio response generation failed. Try Again.")
-
-                st.session_state.messages.append({'role': 'Assistant', 'content': result})
-            else:
-                st.error("No audio detected. Please try again.")
-        else:
-            st.error("Recording failed. Please check your microphone.")
-
-        # Clear Image & Query after audio input
-        st.session_state.uploaded_image = None
-        st.session_state.image_query = ""
-
+    st.session_state.uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
     # Image Handling
     if st.session_state.uploaded_image:
         st.session_state.image_query = st.text_input("Enter your query for image analysis:", value=st.session_state.image_query)
-
         if st.button("Analyze Image"):
             encoded_image = encode_image(st.session_state.uploaded_image)
             result = analyse_image_with_query(st.session_state.image_query, encoded_image)
-
+            st.session_state.uploaded_image = None
             st.chat_message("User").markdown(f"**User (Image Query):** {st.session_state.image_query}")
             st.session_state.messages.append({'role': 'User', 'content': st.session_state.image_query})
-
-            st.chat_message("Assistant").markdown(f"{result}")
-            st.session_state.messages.append({'role': 'Assistant', 'content': result})
-
-            # Clear Image & Query after processing
-            st.session_state.uploaded_image = None
             st.session_state.image_query = ""
+            st.chat_message("Assistant").markdown(f"{result}")
+            st.session_state.messages.append({'role': 'Assistant', 'content': result}) 
+            st.rerun()
 
 if __name__ == "__main__":
     main()
