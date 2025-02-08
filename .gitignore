@@ -25,7 +25,6 @@ streamlit/
 cache/
 
 # Python dependencies
-requirements.txt
 Pipfile
 Pipfile.lock
 
