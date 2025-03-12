@@ -27,7 +27,7 @@ The **AI-Powered Medical Assistant** is an advanced AI-driven healthcare solutio
 ### Steps  
 1. **Clone the Repository:**  
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/garimabhayanaa/AI-Text-Summarizer
    cd AI-Medical-Assistant
 2. **Install Dependencies:** 
     ```bash
