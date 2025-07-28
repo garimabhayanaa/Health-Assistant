@@ -26,11 +26,9 @@ def set_custom_prompt():
 
 def load_llm():
     return HuggingFaceEndpoint(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.3",
+        repo_id=HUGGINGFACE_REPO_ID,
         temperature=0.5,
-        model_kwargs={
-            "max_new_tokens": 512
-        },
+        max_new_tokens=512,
         huggingfacehub_api_token=os.environ["HF_TOKEN"]
     )
 
