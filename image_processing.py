@@ -21,7 +21,7 @@ query= "placeholder query"
 def analyse_image_with_query(query,encoded_image):
     client= Groq()
     query= query
-    model="llama-3.2-90b-vision-preview"
+    model="llava-1.6-34b"
     messages=[
         {
             "role": "user",
