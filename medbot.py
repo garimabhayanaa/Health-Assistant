@@ -36,14 +36,12 @@ def set_custom_prompt():
         Use the context to answer the user's question.
         If you don't know, say so. Don't make up an answer.
         Context: {context}
-        Question: {question}
-        
+        Question: {question}       
         Answer:
     """, input_variables=["context", "question"])
 
 def load_llm():
-    """Load LLM with GROQ as primary, HuggingFace as fallback"""
-    
+    """Load LLM with GROQ as primary, HuggingFace as fallback"""    
     # Try GROQ first if available and API key is set
     if GROQ_AVAILABLE and GROQ_API_KEY:
         try:
@@ -63,7 +61,6 @@ def load_llm():
         return None
     
     try:
-        st.info("🤗 Using HuggingFace API")
         # Try multiple models in order of preference
         models_to_try = [
             "mistralai/Mistral-7B-Instruct-v0.3",
@@ -100,25 +97,6 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    
-    # Debug and setup info
-    st.sidebar.markdown("### 🔧 Setup Status")
-    st.sidebar.write(f"**GROQ Available:** {'✅' if GROQ_AVAILABLE else '❌'}")
-    st.sidebar.write(f"**GROQ API Key:** {'✅' if GROQ_API_KEY else '❌'}")
-    st.sidebar.write(f"**HF Token:** {'✅' if HF_TOKEN else '❌'}")
-    
-    if not GROQ_AVAILABLE:
-        st.sidebar.markdown("### 📦 Install GROQ")
-        st.sidebar.code("pip install langchain-groq", language="bash")
-    
-    if not GROQ_API_KEY and not HF_TOKEN:
-        st.error("⚠️ No API keys found! Please set either GROQ_API_KEY or HF_TOKEN environment variable.")
-        st.markdown("""
-        ### How to get API keys:
-        - **GROQ API Key**: Visit [https://console.groq.com/keys](https://console.groq.com/keys) (Free tier available)
-        - **HuggingFace Token**: Visit [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
-        """)
-        return
     
     # Load components
     vectorstore = get_vectorstore()
@@ -189,13 +167,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("🏥 AI-Powered Health Assistant")
-    
-    # Show current API being used
-    if GROQ_AVAILABLE and GROQ_API_KEY:
-        st.success("✅ Using GROQ API for optimal performance!")
-    else:
-        st.info("ℹ️ Using HuggingFace API")
+    st.title("AI-Powered Health Assistant")
 
     # Session State Initialization
     if 'messages' not in st.session_state:
@@ -220,7 +192,7 @@ def main():
         
         # Get response
         try:
-            with st.spinner("🤔 Thinking..."):
+            with st.spinner("Thinking..."):
                 response = qa_chain.invoke({'query': prompt})
                 result = response["result"]
             
@@ -238,7 +210,7 @@ def main():
     st.markdown("---")
     
     # Image Analysis Section
-    st.markdown("### 📷 Image Analysis")
+    st.markdown("### Image Analysis")
     uploaded_file = st.file_uploader(
         "Upload a medical image for analysis", 
         type=["png", "jpg", "jpeg"],
@@ -272,7 +244,7 @@ def main():
                             st.markdown(f"**Image Analysis Query:** {image_query}")
                         st.session_state.messages.append({
                             'role': 'user', 
-                            'content': f"🖼️ Image Analysis: {image_query}"
+                            'content': f"Image Analysis: {image_query}"
                         })
                         
                         with st.chat_message("assistant"):
