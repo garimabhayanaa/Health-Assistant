@@ -28,7 +28,9 @@ def load_llm():
     return HuggingFaceEndpoint(
         repo_id="mistralai/Mistral-7B-Instruct-v0.3",
         temperature=0.5,
-        max_new_tokens=512,  
+        model_kwargs={
+            "max_new_tokens": 512
+        },
         huggingfacehub_api_token=os.environ["HF_TOKEN"]
     )
 
