@@ -3,18 +3,13 @@ import streamlit as st
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
 from image_processing import analyse_image_with_query, encode_image
 
-# Fix for torch classes path error
-import torch
-import sys
-
 HF_TOKEN = os.getenv("HF_TOKEN")
-# Use verified working Mistral models
-HUGGINGFACE_REPO_ID = "mistralai/Mistral-7B-Instruct-v0.3"  # Most stable Mistral model
-DB_FAISS_PATH = "vectorstore/db_faiss"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+DB_FAISS_PATH = "vectorstore/db_faiss"
 
 def get_vectorstore():
     try:
@@ -36,67 +31,47 @@ def set_custom_prompt():
 
 def load_llm():
     try:
-        # Primary: Try with Mistral-7B-Instruct-v0.3 (verified working)
-        return HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-            task="text-generation",
-            temperature=0.4,
-            max_new_tokens=400,
-            huggingfacehub_api_token=HF_TOKEN
-        )
-    except Exception as e:
-        st.warning(f"Primary model failed: {str(e)}")
-        try:
-            # Fallback 1: Mistral v0.2
-            return HuggingFaceEndpoint(
-                repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-                task="text-generation",
+        if GROQ_API_KEY:
+            # Use GROQ API (faster and more reliable)
+            return ChatGroq(
+                groq_api_key=GROQ_API_KEY,
+                model_name="mixtral-8x7b-32768",  # or "llama2-70b-4096"
                 temperature=0.4,
-                max_new_tokens=400,
-                huggingfacehub_api_token=HF_TOKEN
+                max_tokens=400
             )
-        except Exception as e2:
-            st.warning(f"Fallback 1 failed: {str(e2)}")
-            try:
-                # Fallback 2: Google Flan-T5 (very reliable)
-                return HuggingFaceEndpoint(
-                    repo_id="google/flan-t5-large",
-                    task="text2text-generation",
-                    temperature=0.4,
-                    max_new_tokens=400,
-                    huggingfacehub_api_token=HF_TOKEN
-                )
-            except Exception as e3:
-                st.error(f"All models failed. Last error: {str(e3)}")
-                return None
+        else:
+            st.error("GROQ_API_KEY is not set. Please set your GROQ API key.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading LLM: {str(e)}")
+        return None
 
 def main():
-    # Page configuration with custom theme and favicon
+    # Page configuration
     st.set_page_config(
         page_title="Health Assistant",
         layout="wide",
         initial_sidebar_state="expanded"
     )
     
-    # Debug: Show which model we're trying to use
+    # Debug info
     st.sidebar.write(f"**Debug Info:**")
-    st.sidebar.write(f"Primary Model: mistralai/Mistral-7B-Instruct-v0.3")
+    st.sidebar.write(f"GROQ API Set: {'Yes' if GROQ_API_KEY else 'No'}")
     st.sidebar.write(f"HF Token Set: {'Yes' if HF_TOKEN else 'No'}")
     
-    # Check if required environment variables are set
-    if not HF_TOKEN:
-        st.error("HF_TOKEN environment variable is not set. Please set your Hugging Face token.")
+    # Check API keys
+    if not GROQ_API_KEY:
+        st.error("GROQ_API_KEY environment variable is not set. Please set your GROQ API key.")
+        st.info("Get your GROQ API key from: https://console.groq.com/keys")
         return
     
-    # Load components with error handling
+    # Load components
     vectorstore = get_vectorstore()
     if vectorstore is None:
-        st.error("Failed to load vector store. Please check your vector store path.")
         return
     
     llm = load_llm()
     if llm is None:
-        st.error("Failed to load language model. Please check your Hugging Face token and model availability.")
         return
     
     try:
@@ -138,21 +113,16 @@ def main():
         .stMarkdown {
             color: black !important;  
         }
-        /* Make the chat input border and text orange */
         div[data-testid="stChatInput"] textarea {
             border: 1px solid black !important;
             color: #77DD77 !important;
         }
-        /* Make the file uploader button orange */
         div[data-testid="stFileUploader"] {
             color: #77DD77 !important;
         }
-        /* Change file uploader text color */
         div[data-testid="stFileUploader"] label {
             color: #77DD77 !important;
         }
-        
-        /* Change file uploader button color */
         div[data-testid="stFileUploader"] button {
             background-color: #77DD77 !important;
             color: black !important;
@@ -165,6 +135,7 @@ def main():
     """, unsafe_allow_html=True)
 
     st.title("Welcome to your AI-Powered Health Assistant!")
+    st.success("✅ Using GROQ API for faster responses!")
 
     # Session State Initialization
     if 'messages' not in st.session_state:
@@ -187,7 +158,7 @@ def main():
             st.markdown(f"**User:** {prompt}")
         st.session_state.messages.append({'role': 'user', 'content': prompt})
         
-        # Get response with error handling
+        # Get response
         try:
             with st.spinner("Thinking..."):
                 response = qa_chain.invoke({'query': prompt})
@@ -211,8 +182,6 @@ def main():
     
     if uploaded_file is not None:
         st.session_state.uploaded_image = uploaded_file
-        
-        # Display the uploaded image
         st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
         
         image_query = st.text_input("Enter your query for image analysis:", 
@@ -224,7 +193,6 @@ def main():
                     encoded_image = encode_image(uploaded_file)
                     result = analyse_image_with_query(image_query, encoded_image)
                 
-                # Display user query and response
                 with st.chat_message("user"):
                     st.markdown(f"**User (Image Query):** {image_query}")
                 st.session_state.messages.append({'role': 'user', 'content': f"Image Query: {image_query}"})
@@ -233,14 +201,12 @@ def main():
                     st.markdown(result)
                 st.session_state.messages.append({'role': 'assistant', 'content': result})
                 
-                # Clear the image query after processing
                 st.session_state.image_query = ""
                 st.rerun()
                 
             except Exception as e:
                 error_msg = f"Error analyzing image: {str(e)}"
                 st.error(error_msg)
-                st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
 
 if __name__ == "__main__":
     main()
