@@ -4,7 +4,7 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_community.llms import HuggingFaceEndpoint
 from image_processing import analyse_image_with_query, encode_image
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -25,15 +25,11 @@ def set_custom_prompt():
     """, input_variables=["context", "question"])
 
 def load_llm():
-    hf_token = os.getenv("HF_TOKEN")
-    if hf_token is None:
-        raise ValueError("HF_TOKEN is not set in environment variables.")
-    
     return HuggingFaceEndpoint(
-        repo_id=HUGGINGFACE_REPO_ID,
+        repo_id="mistralai/Mistral-7B-Instruct-v0.3",
         temperature=0.5,
-        max_new_tokens=512,
-        huggingfacehub_api_token=hf_token
+        max_new_tokens=512,  
+        huggingfacehub_api_token=os.environ["HF_TOKEN"]
     )
 
 def main():
