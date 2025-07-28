@@ -45,7 +45,6 @@ def load_llm():
     # Try GROQ first if available and API key is set
     if GROQ_AVAILABLE and GROQ_API_KEY:
         try:
-            st.info("🚀 Using GROQ API for faster responses!")
             return ChatGroq(
                 groq_api_key=GROQ_API_KEY,
                 model_name="llama-3.3-70b-versatile",  # Updated to current model
