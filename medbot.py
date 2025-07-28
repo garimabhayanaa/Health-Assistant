@@ -4,7 +4,7 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.llms import HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEndpoint
 from image_processing import analyse_image_with_query, encode_image
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -25,13 +25,15 @@ def set_custom_prompt():
     """, input_variables=["context", "question"])
 
 def load_llm():
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token is None:
+        raise ValueError("HF_TOKEN is not set in environment variables.")
+    
     return HuggingFaceEndpoint(
-        repo_id=HUGGINGFACE_REPO_ID,   # e.g. "bigscience/bloom"
+        repo_id=HUGGINGFACE_REPO_ID,
         temperature=0.5,
-        model_kwargs={
-            "max_new_tokens": 512
-        },
-        huggingfacehub_api_token=HF_TOKEN,
+        model_kwargs={"max_new_tokens": 512},
+        huggingfacehub_api_token=hf_token
     )
 
 def main():
