@@ -50,7 +50,7 @@ def load_llm():
             st.info("🚀 Using GROQ API for faster responses!")
             return ChatGroq(
                 groq_api_key=GROQ_API_KEY,
-                model_name="mixtral-8x7b-32768",
+                model_name="llama-3.3-70b-versatile",  # Updated to current model
                 temperature=0.4,
                 max_tokens=400
             )
