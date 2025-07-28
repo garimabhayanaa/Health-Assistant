@@ -3,12 +3,11 @@ import streamlit as st
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.llms import HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEmbeddings,HuggingFaceEndpoint
 from image_processing import analyse_image_with_query, encode_image
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-HUGGINGFACE_REPO_ID = "mistralai/Mistral-7B-Instruct-v0.3"
+HUGGINGFACE_REPO_ID = "mistralai/Devstral-Small-2507"
 DB_FAISS_PATH = "vectorstore/db_faiss"
 GROQ_API_KEY=os.getenv("GROQ_API_KEY")
 
@@ -26,10 +25,10 @@ def set_custom_prompt():
 
 def load_llm():
     return HuggingFaceEndpoint(
-        repo_id=HUGGINGFACE_REPO_ID,
+        model=HUGGINGFACE_REPO_ID,
         task="text-generation",
-        temperature=0.5,
-        max_new_tokens=512,
+        temperature=0.4,
+        max_new_tokens=400,
         huggingfacehub_api_token=os.environ["HF_TOKEN"]
     )
 
