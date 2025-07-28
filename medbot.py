@@ -1,10 +1,10 @@
 import os
 import streamlit as st
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.llms import HuggingFaceEndpoint
 from image_processing import analyse_image_with_query, encode_image
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -26,13 +26,21 @@ def set_custom_prompt():
 
 def load_llm():
     return HuggingFaceEndpoint(
-        repo_id=HUGGINGFACE_REPO_ID,
+        repo_id=HUGGINGFACE_REPO_ID,   # e.g. "bigscience/bloom"
         temperature=0.5,
-        model_kwargs={"token": HF_TOKEN, "max_length": "512"},
-        task="text-generation"
+        model_kwargs={
+            "max_new_tokens": 512
+        },
+        huggingfacehub_api_token=HF_TOKEN,
     )
 
 def main():
+    # Page configuration with custom theme and favicon
+    st.set_page_config(
+        page_title="Health Assistant",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
     vectorstore = get_vectorstore()
     qa_chain = RetrievalQA.from_chain_type(
             llm=load_llm(),
