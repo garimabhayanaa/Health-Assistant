@@ -32,7 +32,7 @@ def load_llm():
     return HuggingFaceEndpoint(
         repo_id=HUGGINGFACE_REPO_ID,
         temperature=0.5,
-        model_kwargs={"max_new_tokens": 512},
+        max_new_tokens: 512,
         huggingfacehub_api_token=hf_token
     )
 
