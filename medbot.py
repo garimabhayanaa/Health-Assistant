@@ -11,9 +11,8 @@ import torch
 import sys
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-# Updated to a working model - you can change this to your preferred model
-HUGGINGFACE_REPO_ID = "microsoft/DialoGPT-medium"  # Alternative working model
-# Or try: "microsoft/DialoGPT-small", "HuggingFaceH4/zephyr-7b-beta"
+# Use verified working Mistral models
+HUGGINGFACE_REPO_ID = "mistralai/Mistral-7B-Instruct-v0.3"  # Most stable Mistral model
 DB_FAISS_PATH = "vectorstore/db_faiss"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -37,27 +36,39 @@ def set_custom_prompt():
 
 def load_llm():
     try:
-        # Alternative 1: Try with the original model first
-        try:
-            return HuggingFaceEndpoint(
-                repo_id="mistralai/Mistral-7B-Instruct-v0.1",  # More stable alternative
-                task="text-generation",
-                temperature=0.4,
-                max_new_tokens=400,
-                huggingfacehub_api_token=HF_TOKEN
-            )
-        except:
-            # Alternative 2: Fallback to a more reliable model
-            return HuggingFaceEndpoint(
-                repo_id="microsoft/DialoGPT-medium",
-                task="text-generation",
-                temperature=0.4,
-                max_new_tokens=400,
-                huggingfacehub_api_token=HF_TOKEN
-            )
+        # Primary: Try with Mistral-7B-Instruct-v0.3 (verified working)
+        return HuggingFaceEndpoint(
+            repo_id="mistralai/Mistral-7B-Instruct-v0.3",
+            task="text-generation",
+            temperature=0.4,
+            max_new_tokens=400,
+            huggingfacehub_api_token=HF_TOKEN
+        )
     except Exception as e:
-        st.error(f"Error loading LLM: {str(e)}")
-        return None
+        st.warning(f"Primary model failed: {str(e)}")
+        try:
+            # Fallback 1: Mistral v0.2
+            return HuggingFaceEndpoint(
+                repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+                task="text-generation",
+                temperature=0.4,
+                max_new_tokens=400,
+                huggingfacehub_api_token=HF_TOKEN
+            )
+        except Exception as e2:
+            st.warning(f"Fallback 1 failed: {str(e2)}")
+            try:
+                # Fallback 2: Google Flan-T5 (very reliable)
+                return HuggingFaceEndpoint(
+                    repo_id="google/flan-t5-large",
+                    task="text2text-generation",
+                    temperature=0.4,
+                    max_new_tokens=400,
+                    huggingfacehub_api_token=HF_TOKEN
+                )
+            except Exception as e3:
+                st.error(f"All models failed. Last error: {str(e3)}")
+                return None
 
 def main():
     # Page configuration with custom theme and favicon
@@ -66,6 +77,11 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    
+    # Debug: Show which model we're trying to use
+    st.sidebar.write(f"**Debug Info:**")
+    st.sidebar.write(f"Primary Model: mistralai/Mistral-7B-Instruct-v0.3")
+    st.sidebar.write(f"HF Token Set: {'Yes' if HF_TOKEN else 'No'}")
     
     # Check if required environment variables are set
     if not HF_TOKEN:
