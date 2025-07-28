@@ -20,15 +20,14 @@ query= "placeholder query"
 
 def analyse_image_with_query(query,encoded_image):
     client= Groq()
-    query= query
-    model="llava-1.6-34b"
+    model = "meta-llama/llama-4-scout-17b-16e-instruct"
     messages=[
         {
             "role": "user",
             "content": [
                 {
                     "type":"text",
-                    "text": "query",
+                    "text": query,
                 }, 
                 {
                     "type":"image_url",
@@ -40,7 +39,12 @@ def analyse_image_with_query(query,encoded_image):
         }
     ]
     chat_completion = client.chat.completions.create(
-        messages=messages,
         model=model,
+        messages=messages,
+        temperature=1,
+        max_completion_tokens=1024,
+        top_p=1,
+        stream=False,  # set True if you want streaming output
+        stop=None,
     )
     return(chat_completion.choices[0].message.content)
