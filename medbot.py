@@ -267,7 +267,7 @@ def main():
 
     # Footer with instructions
     st.markdown("---")
-    st.markdown("### 💡 Tips")
+    st.markdown("### Tips")
     st.markdown("""
     - Ask specific health questions for better responses
     - Upload medical images for detailed analysis
