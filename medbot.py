@@ -4,7 +4,19 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
+
+# Try to import GROQ, fall back to HuggingFace if not available
+try:
+    from langchain_groq import ChatGroq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    st.warning("langchain_groq not found. Install with: pip install langchain-groq")
+
+# Fallback to HuggingFace if GROQ not available
+if not GROQ_AVAILABLE:
+    from langchain_huggingface import HuggingFaceEndpoint
+
 from image_processing import analyse_image_with_query, encode_image
 
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -30,20 +42,55 @@ def set_custom_prompt():
     """, input_variables=["context", "question"])
 
 def load_llm():
-    try:
-        if GROQ_API_KEY:
-            # Use GROQ API (faster and more reliable)
+    """Load LLM with GROQ as primary, HuggingFace as fallback"""
+    
+    # Try GROQ first if available and API key is set
+    if GROQ_AVAILABLE and GROQ_API_KEY:
+        try:
+            st.info("🚀 Using GROQ API for faster responses!")
             return ChatGroq(
                 groq_api_key=GROQ_API_KEY,
-                model_name="mixtral-8x7b-32768",  # or "llama2-70b-4096"
+                model_name="mixtral-8x7b-32768",
                 temperature=0.4,
                 max_tokens=400
             )
-        else:
-            st.error("GROQ_API_KEY is not set. Please set your GROQ API key.")
-            return None
+        except Exception as e:
+            st.warning(f"GROQ API failed: {str(e)}. Falling back to HuggingFace...")
+    
+    # Fallback to HuggingFace
+    if not HF_TOKEN:
+        st.error("Neither GROQ_API_KEY nor HF_TOKEN is set. Please set at least one API key.")
+        return None
+    
+    try:
+        st.info("🤗 Using HuggingFace API")
+        # Try multiple models in order of preference
+        models_to_try = [
+            "mistralai/Mistral-7B-Instruct-v0.3",
+            "mistralai/Mistral-7B-Instruct-v0.2",
+            "microsoft/DialoGPT-medium",
+            "google/flan-t5-large"
+        ]
+        
+        for model in models_to_try:
+            try:
+                task = "text2text-generation" if "flan-t5" in model else "text-generation"
+                return HuggingFaceEndpoint(
+                    repo_id=model,
+                    task=task,
+                    temperature=0.4,
+                    max_new_tokens=400,
+                    huggingfacehub_api_token=HF_TOKEN
+                )
+            except Exception as e:
+                st.warning(f"Model {model} failed: {str(e)}")
+                continue
+        
+        st.error("All models failed to load")
+        return None
+        
     except Exception as e:
-        st.error(f"Error loading LLM: {str(e)}")
+        st.error(f"Error loading HuggingFace models: {str(e)}")
         return None
 
 def main():
@@ -54,15 +101,23 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Debug info
-    st.sidebar.write(f"**Debug Info:**")
-    st.sidebar.write(f"GROQ API Set: {'Yes' if GROQ_API_KEY else 'No'}")
-    st.sidebar.write(f"HF Token Set: {'Yes' if HF_TOKEN else 'No'}")
+    # Debug and setup info
+    st.sidebar.markdown("### 🔧 Setup Status")
+    st.sidebar.write(f"**GROQ Available:** {'✅' if GROQ_AVAILABLE else '❌'}")
+    st.sidebar.write(f"**GROQ API Key:** {'✅' if GROQ_API_KEY else '❌'}")
+    st.sidebar.write(f"**HF Token:** {'✅' if HF_TOKEN else '❌'}")
     
-    # Check API keys
-    if not GROQ_API_KEY:
-        st.error("GROQ_API_KEY environment variable is not set. Please set your GROQ API key.")
-        st.info("Get your GROQ API key from: https://console.groq.com/keys")
+    if not GROQ_AVAILABLE:
+        st.sidebar.markdown("### 📦 Install GROQ")
+        st.sidebar.code("pip install langchain-groq", language="bash")
+    
+    if not GROQ_API_KEY and not HF_TOKEN:
+        st.error("⚠️ No API keys found! Please set either GROQ_API_KEY or HF_TOKEN environment variable.")
+        st.markdown("""
+        ### How to get API keys:
+        - **GROQ API Key**: Visit [https://console.groq.com/keys](https://console.groq.com/keys) (Free tier available)
+        - **HuggingFace Token**: Visit [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+        """)
         return
     
     # Load components
@@ -134,8 +189,13 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("Welcome to your AI-Powered Health Assistant!")
-    st.success("✅ Using GROQ API for faster responses!")
+    st.title("🏥 AI-Powered Health Assistant")
+    
+    # Show current API being used
+    if GROQ_AVAILABLE and GROQ_API_KEY:
+        st.success("✅ Using GROQ API for optimal performance!")
+    else:
+        st.info("ℹ️ Using HuggingFace API")
 
     # Session State Initialization
     if 'messages' not in st.session_state:
@@ -151,16 +211,16 @@ def main():
             st.markdown(message['content'])
 
     # Chat Input
-    prompt = st.chat_input("💬 Type your message...")
+    prompt = st.chat_input("💬 Ask me anything about health...")
     if prompt:
         # Display user message
         with st.chat_message("user"):
-            st.markdown(f"**User:** {prompt}")
+            st.markdown(prompt)
         st.session_state.messages.append({'role': 'user', 'content': prompt})
         
         # Get response
         try:
-            with st.spinner("Thinking..."):
+            with st.spinner("🤔 Thinking..."):
                 response = qa_chain.invoke({'query': prompt})
                 result = response["result"]
             
@@ -170,43 +230,79 @@ def main():
             st.session_state.messages.append({'role': 'assistant', 'content': result})
             
         except Exception as e:
-            error_msg = f"Error generating response: {str(e)}"
+            error_msg = f"❌ Error generating response: {str(e)}"
             with st.chat_message("assistant"):
                 st.error(error_msg)
             st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
 
-    st.write("---")
+    st.markdown("---")
     
-    # Image Handling
-    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    # Image Analysis Section
+    st.markdown("### 📷 Image Analysis")
+    uploaded_file = st.file_uploader(
+        "Upload a medical image for analysis", 
+        type=["png", "jpg", "jpeg"],
+        help="Upload X-rays, scans, or other medical images"
+    )
     
     if uploaded_file is not None:
-        st.session_state.uploaded_image = uploaded_file
-        st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
+        col1, col2 = st.columns([1, 1])
         
-        image_query = st.text_input("Enter your query for image analysis:", 
-                                   value=st.session_state.get("image_query", ""))
+        with col1:
+            st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
         
-        if st.button("Analyze Image") and image_query:
-            try:
-                with st.spinner("Analyzing image..."):
-                    encoded_image = encode_image(uploaded_file)
-                    result = analyse_image_with_query(image_query, encoded_image)
-                
-                with st.chat_message("user"):
-                    st.markdown(f"**User (Image Query):** {image_query}")
-                st.session_state.messages.append({'role': 'user', 'content': f"Image Query: {image_query}"})
-                
-                with st.chat_message("assistant"):
-                    st.markdown(result)
-                st.session_state.messages.append({'role': 'assistant', 'content': result})
-                
-                st.session_state.image_query = ""
-                st.rerun()
-                
-            except Exception as e:
-                error_msg = f"Error analyzing image: {str(e)}"
-                st.error(error_msg)
+        with col2:
+            image_query = st.text_area(
+                "What would you like to know about this image?", 
+                value=st.session_state.get("image_query", ""),
+                placeholder="Describe what you see in this image..."
+            )
+            
+            if st.button("🔍 Analyze Image", use_container_width=True):
+                if not image_query.strip():
+                    st.warning("Please enter a question about the image.")
+                else:
+                    try:
+                        with st.spinner("🔍 Analyzing image..."):
+                            encoded_image = encode_image(uploaded_file)
+                            result = analyse_image_with_query(image_query, encoded_image)
+                        
+                        # Add to chat history
+                        with st.chat_message("user"):
+                            st.markdown(f"**Image Analysis Query:** {image_query}")
+                        st.session_state.messages.append({
+                            'role': 'user', 
+                            'content': f"🖼️ Image Analysis: {image_query}"
+                        })
+                        
+                        with st.chat_message("assistant"):
+                            st.markdown(result)
+                        st.session_state.messages.append({
+                            'role': 'assistant', 
+                            'content': result
+                        })
+                        
+                        # Reset image query
+                        st.session_state.image_query = ""
+                        st.rerun()
+                        
+                    except Exception as e:
+                        error_msg = f"❌ Error analyzing image: {str(e)}"
+                        st.error(error_msg)
+                        st.session_state.messages.append({
+                            'role': 'assistant', 
+                            'content': error_msg
+                        })
+
+    # Footer with instructions
+    st.markdown("---")
+    st.markdown("### 💡 Tips")
+    st.markdown("""
+    - Ask specific health questions for better responses
+    - Upload medical images for detailed analysis
+    - The AI uses medical literature to provide informed answers
+    - **Disclaimer**: This is for informational purposes only. Always consult healthcare professionals.
+    """)
 
 if __name__ == "__main__":
     main()
